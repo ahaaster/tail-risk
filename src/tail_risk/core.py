@@ -15,6 +15,6 @@ def hill_curve_1d(losses: jax.Array, k_max: int) -> jax.Array:
     return 1.0 / inverse_alpha
 
 
-def hill_curve(losses: jax.Array, k_max: int) -> jax.Array:
+def calc_hill_curve(losses: jax.Array, k_max: int) -> jax.Array:
+    losses = jnp.atleast_2d(losses)
     return jax.vmap(hill_curve_1d, in_axes=(1, None))(losses, k_max)
-
