@@ -1,0 +1,27 @@
+[project]
+name = "tail-risk"
+version = "0.1.0"
+description = "How heavy are the tails of individual stock returns, and how much does a normal model understate 1% daily loss risk?"
+readme = "README.md"
+authors = [
+    { name = "Arnaud van Haaster", email = "git.8gsk7@passmail.net" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "jax>=0.12.0.1",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "pandas>=3.1.1",
+    "scikit-learn>=1.9.1",
+]
+
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "black>=26.10.1",
+    "pytest>=9.2.0",
+]
