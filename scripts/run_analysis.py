@@ -17,6 +17,7 @@ WORKING_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = WORKING_DIR / "data"
 FIG_PATH = WORKING_DIR / "figures"
 K_RATIO = 0.10
+K_OVER_T_SHARES = (0.02, 0.035, 0.05)
 STOCK_SELECTION = ["AAPL", "C", "KO", "ASML.AS", "BNP.PA"]
 
 
@@ -40,10 +41,7 @@ def select_stocks(
     for stock in relevant_stocks:
         idx = log_returns.columns.get_loc(stock)
         hill_curve = hill_curves[idx]
-        # print(f"{stock = } | {idx = }")
-        # print(f"{hill_curves.shape = }")
-        # print(f"{hill_curve.shape = }")
-
+       
         # if stock == "C":
         #     sorted_returns = log_returns[stock]
         #     sorted_returns = sorted_returns.sort_values()
@@ -72,7 +70,6 @@ if __name__ == "__main__":
 
         quartiles = np.array([25, 50, 75])
         quartiles = np.percentile(hill_curves, quartiles, axis=0)
-
         # x-axis indexing to make different Ts per market consistent
         sample_share = np.arange(1, k_max + 1) / T
         market_results[market_name] = {"share": sample_share, "quartiles": quartiles}
@@ -81,7 +78,7 @@ if __name__ == "__main__":
         single_stocks.extend(stock_results)
 
         ecdf_results[market_name] = {}
-        for pct in (0.02, 0.035, 0.05):
+        for pct in K_OVER_T_SHARES:
             k = int(pct * T)
             alpha_hats = hill_curves[:, k - 1]
             ecdf_results[market_name][pct] = alpha_hats
