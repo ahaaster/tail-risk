@@ -1,0 +1,111 @@
+import jax
+import matplotlib
+
+matplotlib.use("Agg")  # only render to file
+import numpy as np
+import pandas as pd
+import jax.numpy as jnp
+from pathlib import Path
+import matplotlib.pyplot as plt
+
+from tail_risk.core import calc_hill_curve
+from tail_risk.plots import plot_hill_curves, plot_ecdf
+
+jax.config.update("jax_enable_x64", True)
+
+WORKING_DIR = Path(__file__).resolve().parents[1]
+DATA_PATH = WORKING_DIR / "data"
+FIG_PATH = WORKING_DIR / "figures"
+K_RATIO = 0.10
+STOCK_SELECTION = ["AAPL", "C", "KO", "ASML.AS", "BNP.PA"]
+
+
+def calculate_hill(log_returns: pd.DataFrame) -> (jnp.Array, int, int):
+    # We invert the returns to ultimately sort the largest loss as first index
+    losses = -jnp.asarray(log_returns.to_numpy())
+
+    T, _ = losses.shape
+    k_max = int(K_RATIO * T)
+
+    hill_curves = calc_hill_curve(losses, k_max)
+    return hill_curves, T, k_max
+
+
+def select_stocks(
+    log_returns: pd.DataFrame, hill_curves: jnp.Array, sample_share: jnp.Array
+) -> list[tuple]:
+    relevant_stocks = log_returns.columns.intersection(STOCK_SELECTION)
+
+    list_of_stock_results = []
+    for stock in relevant_stocks:
+        idx = log_returns.columns.get_loc(stock)
+        hill_curve = hill_curves[idx]
+        # print(f"{stock = } | {idx = }")
+        # print(f"{hill_curves.shape = }")
+        # print(f"{hill_curve.shape = }")
+
+        # if stock == "C":
+        #     sorted_returns = log_returns[stock]
+        #     sorted_returns = sorted_returns.sort_values()
+        #     print(sorted_returns.head(10))
+
+        stock_results = (stock, sample_share, hill_curve)
+        list_of_stock_results.append(stock_results)
+
+    return list_of_stock_results
+
+
+if __name__ == "__main__":
+    DATA_PATH.mkdir(exist_ok=True)
+    FIG_PATH.mkdir(exist_ok=True)
+    data_paths = DATA_PATH.glob("logret_*.csv")
+
+    market_results, ecdf_results = {}, {}
+    single_stocks, summary_rows = [], []
+    for data_path in data_paths:
+        file_name = data_path.stem
+        market_name = file_name.removeprefix("logret_").removesuffix("_daily")
+
+        log_returns = pd.read_csv(data_path, index_col=0)
+        hill_curves, T, k_max = calculate_hill(log_returns)
+        hill_curves = np.asarray(hill_curves)
+
+        quartiles = np.array([25, 50, 75])
+        quartiles = np.percentile(hill_curves, quartiles, axis=0)
+
+        # x-axis indexing to make different Ts per market consistent
+        sample_share = np.arange(1, k_max + 1) / T
+        market_results[market_name] = {"share": sample_share, "quartiles": quartiles}
+
+        stock_results = select_stocks(log_returns, hill_curves, sample_share)
+        single_stocks.extend(stock_results)
+
+        ecdf_results[market_name] = {}
+        for pct in (0.02, 0.035, 0.05):
+            k = int(pct * T)
+            alpha_hats = hill_curves[:, k - 1]
+            ecdf_results[market_name][pct] = alpha_hats
+
+            share_below_2_alpha = (alpha_hats < 2).mean()
+            summary_rows.append(
+                {
+                    "market": market_name,
+                    "k/T": f"{pct:.1%}",
+                    "k": k,
+                    r"median $\hat{\alpha}$": round(float(np.median(alpha_hats)), 2),
+                    r"share $\hat{\alpha} < 2$": f"{share_below_2_alpha:.1%}",
+                }
+            )
+
+    # Plot and save Hill plot
+    fig_hill = plot_hill_curves(market_results, single_stocks, k_band=(0.02, 0.05))
+    fig_hill.savefig(FIG_PATH / "hill_curve.png", dpi=150)
+    plt.close(fig_hill)
+    # Plot and save ECDF
+    fig_ecdf = plot_ecdf(ecdf_results)
+    fig_ecdf.savefig(FIG_PATH / "ecdf.png", dpi=150)
+    plt.close(fig_ecdf)
+    # Record summary to .md
+    summary_hill = pd.DataFrame(summary_rows)
+    summary_md = summary_hill.to_markdown(index=False)
+    (FIG_PATH / f"summary.md").write_text(summary_md)
