@@ -8,7 +8,8 @@ import jax.numpy as jnp
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from tail_risk.core import calc_hill_curve, create_iqr_band, K_RATIO
+from tail_risk.core import K_RATIO, calc_hill_curve, create_iqr_band
+from tail_risk.core import rolling_normal_var, kupiec_test, calc_quartiles
 from tail_risk.plots import plot_hill_curves, plot_ecdf
 from tail_risk.simulation import simulate_data
 
@@ -53,13 +54,41 @@ def select_stocks(
     return list_of_stock_results
 
 
+def run_var_backtest(log_returns: pd.DataFrame, window: int = 504, level: float = 0.01):
+    losses = -jnp.asarray(log_returns.to_numpy())
+    losses = losses[window:]
+
+    value_at_risk = rolling_normal_var(log_returns, window, level)
+    exceedances = losses > value_at_risk
+
+    forecast_count = exceedances.shape[0]
+    exceed_count = exceedances.sum(axis=0)
+    _, p_val = kupiec_test(exceed_count, forecast_count, level)
+
+    exceed_rate = np.asarray(exceed_count / forecast_count)
+    quarter, median, three_quart = calc_quartiles(exceed_rate)
+
+    rejections = (p_val < 0.05).mean()
+
+    results = {
+        "model": r"normal, rolling $\sigma$ " + f"W={window}",
+        "median rate exceeded": f"{median:.2%}",
+        "IQR-band": f"{quarter:.2%}-{three_quart:.2%}",
+        "share rejected (5%)": f"{rejections:.1%}",
+    }
+
+    dates = log_returns.index[window:]
+    exceedance_df = pd.DataFrame(np.asarray(exceedances), index=dates)
+    return results, exceed_rate, exceedance_df
+
+
 if __name__ == "__main__":
     DATA_PATH.mkdir(exist_ok=True)
     FIG_PATH.mkdir(exist_ok=True)
     data_paths = DATA_PATH.glob("logret_*.csv")
 
     market_results, ecdf_results = {}, {}
-    single_stocks, summary_rows = [], []
+    single_stocks, summary_rows, var_rows = [], [], []
     for data_path in data_paths:
         file_name = data_path.stem
         market_name = file_name.removeprefix("logret_").removesuffix("_daily")
@@ -91,6 +120,11 @@ if __name__ == "__main__":
                 }
             )
 
+        # Value-at-Risk section per market
+        var_row, var_rates, var_exceed_df = run_var_backtest(log_returns, window=504)
+        var_row["market"] = market_name
+        var_rows.append(var_row)
+
     simulated_results = simulate_data(alphas=(1.7, 1.9))
     total_results = market_results | simulated_results
 
@@ -106,3 +140,8 @@ if __name__ == "__main__":
     summary_hill = pd.DataFrame(summary_rows)
     summary_md = summary_hill.to_markdown(index=False)
     (FIG_PATH / f"summary.md").write_text(summary_md)
+
+    # Record Value-at-Risk summary
+    summary_var = pd.DataFrame(var_rows)
+    summary_var_md = summary_var.to_markdown(index=False)
+    (FIG_PATH / f"var_summary.md").write_text(summary_var_md)
