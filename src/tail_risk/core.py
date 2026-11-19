@@ -1,5 +1,8 @@
 import jax
+import numpy as np
 import jax.numpy as jnp
+
+K_RATIO = 0.10
 
 
 def hill_curve_1d(losses: jax.Array, k_max: int) -> jax.Array:
@@ -18,3 +21,13 @@ def hill_curve_1d(losses: jax.Array, k_max: int) -> jax.Array:
 def calc_hill_curve(losses: jax.Array, k_max: int) -> jax.Array:
     losses = jnp.atleast_2d(losses)
     return jax.vmap(hill_curve_1d, in_axes=(1, None))(losses, k_max)
+
+
+def create_iqr_band(hill_curves, k_max: int, T: int) -> dict:
+    quartiles = np.array([25, 50, 75])
+    quartiles = np.percentile(hill_curves, quartiles, axis=0)
+
+    # x-axis indexing to make different Ts per market consistent
+    sample_share = np.arange(1, k_max + 1) / T
+
+    return {"share": sample_share, "quartiles": quartiles}

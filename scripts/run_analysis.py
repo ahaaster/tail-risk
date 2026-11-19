@@ -8,15 +8,15 @@ import jax.numpy as jnp
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-from tail_risk.core import calc_hill_curve
+from tail_risk.core import calc_hill_curve, create_iqr_band, K_RATIO
 from tail_risk.plots import plot_hill_curves, plot_ecdf
+from tail_risk.simulation import simulate_data
 
 jax.config.update("jax_enable_x64", True)
 
 WORKING_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = WORKING_DIR / "data"
 FIG_PATH = WORKING_DIR / "figures"
-K_RATIO = 0.10
 K_OVER_T_SHARES = (0.02, 0.035, 0.05)
 STOCK_SELECTION = ["AAPL", "C", "KO", "ASML.AS", "BNP.PA"]
 
@@ -41,7 +41,7 @@ def select_stocks(
     for stock in relevant_stocks:
         idx = log_returns.columns.get_loc(stock)
         hill_curve = hill_curves[idx]
-       
+
         # if stock == "C":
         #     sorted_returns = log_returns[stock]
         #     sorted_returns = sorted_returns.sort_values()
@@ -68,13 +68,10 @@ if __name__ == "__main__":
         hill_curves, T, k_max = calculate_hill(log_returns)
         hill_curves = np.asarray(hill_curves)
 
-        quartiles = np.array([25, 50, 75])
-        quartiles = np.percentile(hill_curves, quartiles, axis=0)
-        # x-axis indexing to make different Ts per market consistent
-        sample_share = np.arange(1, k_max + 1) / T
-        market_results[market_name] = {"share": sample_share, "quartiles": quartiles}
+        iqr_band = create_iqr_band(hill_curves, k_max, T)
+        market_results[market_name] = iqr_band
 
-        stock_results = select_stocks(log_returns, hill_curves, sample_share)
+        stock_results = select_stocks(log_returns, hill_curves, iqr_band["share"])
         single_stocks.extend(stock_results)
 
         ecdf_results[market_name] = {}
@@ -94,8 +91,11 @@ if __name__ == "__main__":
                 }
             )
 
+    simulated_results = simulate_data(alphas=(1.7, 1.9))
+    total_results = market_results | simulated_results
+
     # Plot and save Hill plot
-    fig_hill = plot_hill_curves(market_results, single_stocks, k_band=(0.02, 0.05))
+    fig_hill = plot_hill_curves(total_results, single_stocks, k_band=(0.02, 0.05))
     fig_hill.savefig(FIG_PATH / "hill_curve.png", dpi=150)
     plt.close(fig_hill)
     # Plot and save ECDF

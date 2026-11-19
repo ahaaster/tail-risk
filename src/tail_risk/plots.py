@@ -5,7 +5,12 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.ticker import PercentFormatter
 
-MARKET_COLOURS = {"sp500": "#1f6fb4", "euronext": "#e07b22"}
+MARKET_COLOURS = {
+    "sp500": "#1f6fb4",
+    "euronext": "#e07b22",
+    r"simulated $\alpha$ = 1.7": "#6a3d9a",
+    r"simulated $\alpha$ = 1.9": "#b294c7",
+}
 STOCK_MARKERS = ["o", "s", "^", "D", "v"]
 
 K_LINESTYLES = {0.02: "dashed", 0.035: "solid", 0.05: "dotted"}
@@ -55,11 +60,11 @@ def plot_hill_curves(
             share, quarter, three_quart, color=colour, alpha=0.2, linewidth=0
         )
         ax.plot(
-            share, half, color=colour, linewidth=2, label=f"{market} median (IQR band)"
+            share, half, color=colour, linewidth=2, label=f"{market} (IQR)"
         )
 
     ax.xaxis.set_major_formatter(PercentFormatter(1.0))
-    ax.set_xlabel("k/T (sample of the share treated as tail)")
+    ax.set_xlabel("k/T (share of sample treated as tail)")
     ax.set_ylabel(r"Hill estimate $\hat{\alpha}(k)$")
     ax.grid(axis="y", color="0.9")
 
