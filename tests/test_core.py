@@ -1,8 +1,8 @@
 import jax
 import jax.numpy as jnp
 
-from tail_risk.core import hill_curve_1d, rolling_normal_var
-from tail_risk.core import kupiec_test
+from tail_risk.core import hill_curve_1d, rolling_normal_variance
+from tail_risk.core import kupiec_test, ewma_normal_variance
 
 jax.config.update("jax_enable_x64", True)
 
@@ -28,7 +28,7 @@ def test_normal_var_coverage_on_normal():
 
     logret = 0.01 * jax.random.normal(rng_key, (T, N))
 
-    value_at_risk = rolling_normal_var(logret, window, level)
+    value_at_risk = rolling_normal_variance(logret, window, level)
     exceedances = -logret[window:] > value_at_risk
 
     forecast_count = exceedances.size
@@ -46,8 +46,8 @@ def test_normal_var_has_no_look_ahead():
     # Manually create a crash event
     crash = logret.at[window].set(-1.0)
 
-    var_clean = rolling_normal_var(logret, window)
-    var_crash = rolling_normal_var(crash, window)
+    var_clean = rolling_normal_variance(logret, window)
+    var_crash = rolling_normal_variance(crash, window)
 
     # The rolling prediction for the crash day should not expect it
     assert jnp.allclose(var_clean[0], var_crash[0])
@@ -69,3 +69,22 @@ def test_kupiec_hand_value_and_edge_case():
     assert jnp.isfinite(lr_stat[2])
     # Chi2 1% critical value test
     assert p_val[0] < 0.01
+
+
+def test_ewma_variance_has_no_look_ahead():
+    T, N = 1_000, 3
+    window = 504
+    rng_key = jax.random.key(3)
+
+    logret = 0.01 * jax.random.normal(rng_key, (T, N))
+    # Manually create a crash event
+    crash = logret.at[window].set(-1.0)
+
+    var_clean = ewma_normal_variance(logret, window)
+    var_crash = ewma_normal_variance(crash, window)
+
+    assert var_clean.shape == (T - window, N)
+    # The rolling prediction for the crash day should not expect it
+    assert jnp.allclose(var_clean[0], var_crash[0])
+    # The day after the crash, predictions should be affected
+    assert not jnp.allclose(var_clean[1], var_crash[1])

@@ -5,20 +5,22 @@ matplotlib.use("Agg")  # only render to file
 import numpy as np
 import pandas as pd
 import jax.numpy as jnp
-from pathlib import Path
 import matplotlib.pyplot as plt
 
-from tail_risk.core import K_RATIO, calc_hill_curve, create_iqr_band
-from tail_risk.core import rolling_normal_var, kupiec_test, calc_quartiles
-from tail_risk.plots import plot_hill_curves, plot_ecdf
+from pathlib import Path
+from typing import Callable
+
+from tail_risk.config import K_RATIO, K_OVER_T_SHARES, MARKET_LABELS
+from tail_risk.config import VAR_MODELS, VAR_WINDOW, VAR_LEVEL, MODEL_LABELS
+from tail_risk.core import calc_hill_curve, create_iqr_band, calc_quartiles, kupiec_test
 from tail_risk.simulation import simulate_data
+from tail_risk.plots import plot_hill_curves, plot_ecdf, plot_exceedance_over_time
 
 jax.config.update("jax_enable_x64", True)
 
 WORKING_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = WORKING_DIR / "data"
 FIG_PATH = WORKING_DIR / "figures"
-K_OVER_T_SHARES = (0.02, 0.035, 0.05)
 STOCK_SELECTION = ["AAPL", "C", "KO", "ASML.AS", "BNP.PA"]
 
 
@@ -54,11 +56,18 @@ def select_stocks(
     return list_of_stock_results
 
 
-def run_var_backtest(log_returns: pd.DataFrame, window: int = 504, level: float = 0.01):
+def run_var_backtest(
+    log_returns: pd.DataFrame,
+    market_name: str,
+    model_name: str,
+    model_function: Callable,
+    window: int = VAR_WINDOW,
+    level: float = VAR_LEVEL,
+):
     losses = -jnp.asarray(log_returns.to_numpy())
     losses = losses[window:]
 
-    value_at_risk = rolling_normal_var(log_returns, window, level)
+    value_at_risk = model_function(log_returns, window, level)
     exceedances = losses > value_at_risk
 
     forecast_count = exceedances.shape[0]
@@ -71,7 +80,8 @@ def run_var_backtest(log_returns: pd.DataFrame, window: int = 504, level: float 
     rejections = (p_val < 0.05).mean()
 
     results = {
-        "model": r"normal, rolling $\sigma$ " + f"W={window}",
+        "market": MARKET_LABELS[market_name],
+        "model": MODEL_LABELS[model_name],
         "median rate exceeded": f"{median:.2%}",
         "IQR-band": f"{quarter:.2%}-{three_quart:.2%}",
         "share rejected (5%)": f"{rejections:.1%}",
@@ -87,13 +97,13 @@ if __name__ == "__main__":
     FIG_PATH.mkdir(exist_ok=True)
     data_paths = DATA_PATH.glob("logret_*.csv")
 
-    market_results, ecdf_results = {}, {}
+    market_results, ecdf_results, var_daily_shares = {}, {}, {}
     single_stocks, summary_rows, var_rows = [], [], []
     for data_path in data_paths:
         file_name = data_path.stem
         market_name = file_name.removeprefix("logret_").removesuffix("_daily")
 
-        log_returns = pd.read_csv(data_path, index_col=0)
+        log_returns = pd.read_csv(data_path, index_col=0, parse_dates=True)
         hill_curves, T, k_max = calculate_hill(log_returns)
         hill_curves = np.asarray(hill_curves)
 
@@ -120,10 +130,21 @@ if __name__ == "__main__":
                 }
             )
 
-        # Value-at-Risk section per market
-        var_row, var_rates, var_exceed_df = run_var_backtest(log_returns, window=504)
-        var_row["market"] = market_name
-        var_rows.append(var_row)
+        # Value-at-Risk section per market per model
+        var_daily_shares[market_name] = {}
+        for model_name, model_function in VAR_MODELS.items():
+            var_row, var_rates, var_exceed_df = run_var_backtest(
+                log_returns,
+                market_name,
+                model_name,
+                model_function,
+                window=VAR_WINDOW,
+            )
+            var_rows.append(var_row)
+
+            # Calculate the share of exceeding stocks per day
+            daily_shares = var_exceed_df.mean(axis=1)
+            var_daily_shares[market_name][model_name] = daily_shares
 
     simulated_results = simulate_data(alphas=(1.7, 1.9))
     total_results = market_results | simulated_results
@@ -145,3 +166,7 @@ if __name__ == "__main__":
     summary_var = pd.DataFrame(var_rows)
     summary_var_md = summary_var.to_markdown(index=False)
     (FIG_PATH / f"var_summary.md").write_text(summary_var_md)
+
+    fig_var = plot_exceedance_over_time(var_daily_shares, smoothing_window=252)
+    fig_var.savefig(FIG_PATH / "var_over_time.png", dpi=150)
+    plt.close(fig_var)

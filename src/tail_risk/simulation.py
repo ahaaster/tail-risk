@@ -2,7 +2,8 @@ import numpy as np
 import jax.numpy as jnp
 from scipy.stats import levy_stable
 
-from tail_risk.core import calc_hill_curve, create_iqr_band, K_RATIO
+from tail_risk.config import K_RATIO
+from tail_risk.core import calc_hill_curve, create_iqr_band
 
 
 def simulate_data(

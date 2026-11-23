@@ -5,8 +5,6 @@ import jax.numpy as jnp
 from jax.scipy.stats import norm, chi2
 from jax.scipy.special import xlogy
 
-K_RATIO = 0.10
-
 
 def hill_curve_1d(losses: jax.Array, k_max: int) -> jax.Array:
     """calculates alpha(k) for k values [1, k_max]"""
@@ -39,7 +37,7 @@ def create_iqr_band(hill_curves, k_max: int, T: int) -> dict:
     return {"share": sample_share, "quartiles": quartiles}
 
 
-def rolling_normal_var(
+def rolling_normal_variance(
     logret, window: int = 504, level: float = 0.01, demean: bool = False
 ) -> jax.Array:
     logret = jnp.asarray(logret)
@@ -76,3 +74,19 @@ def kupiec_test(exceedances: jax.Array, T: int, level: float = 0.01):
     p_value = chi2.sf(lr_stat, df=1)
 
     return lr_stat, p_value
+
+
+def ewma_normal_variance(
+    logret, window: int = 504, level: float = 0.01, decay: float = 0.94
+) -> jax.Array:
+    logret = jnp.asarray(logret)
+    initial_variance = jnp.mean(logret[:window] ** 2, axis=0)
+
+    def update(var_previous, return_previous):
+        var_next = decay * var_previous + (1 - decay) * return_previous**2
+        return var_next, var_next
+
+    _, later_vars = jax.lax.scan(update, initial_variance, logret[window:-1])
+    var_hat = jnp.concatenate([initial_variance[None, :], later_vars])
+
+    return -jnp.sqrt(var_hat) * norm.ppf(level)
