@@ -75,7 +75,7 @@ def run_var_backtest(
     exceed_count = exceedances.sum(axis=0)
 
     _, p_val_kupiec = kupiec_test(exceed_count, forecast_count, level)
-    _, p_val_chris = christoffersen_test(exceed_count)
+    _, p_val_chris = christoffersen_test(exceedances)
     rejections_kupiec = (p_val_kupiec < 0.05).mean()
     rejections_chris = (p_val_chris < 0.05).mean()
 

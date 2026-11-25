@@ -84,10 +84,12 @@ def test_ewma_variance_has_no_look_ahead():
     var_crash = ewma_normal_variance(crash, window)
 
     assert var_clean.shape == (T - window, N)
-    # The rolling prediction for the crash day should not expect it
-    assert jnp.allclose(var_clean[0], var_crash[0])
-    # The day after the crash, predictions should be affected
-    assert not jnp.allclose(var_clean[1], var_crash[1])
+    assert jnp.allclose(
+        var_clean[0], var_crash[0]
+    ), "The rolling prediction for the crash day should not expect it"
+    assert not jnp.allclose(
+        var_clean[1], var_crash[1]
+    ), "The day after the crash, predictions should be affected"
 
 
 def test_christiffersen_fixed_value_and_edge_case():
@@ -96,7 +98,7 @@ def test_christiffersen_fixed_value_and_edge_case():
     exceedances = jnp.stack([sequence, no_breach], axis=1)
 
     lr_stat, _ = christoffersen_test(exceedances)
-    # Precalculated value comparison test
-    assert jnp.isclose(lr_stat[0], 0.1386, atol=1e-3)
-    # Make sure no exceedances at all do not result in NaN
-    assert jnp.isfinite(lr_stat[1])
+    assert jnp.isclose(
+        lr_stat[0], 0.1386, atol=1e-3
+    ), "Precalculated value comparison test"
+    assert jnp.isfinite(lr_stat[1]), "no exceedances at all should not result in NaN"

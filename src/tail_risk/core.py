@@ -93,6 +93,10 @@ def kupiec_test(exceedances: jax.Array, T: int, level: float = 0.01):
 
 
 def christoffersen_test(exceedances: jax.Array):
+    assert (
+        exceedances.dtype == jnp.bool_ and exceedances.ndim == 2
+    ), "boolean (days, stocks) excpected"
+
     previous_day = exceedances[:-1]
     current_day = exceedances[1:]
 
