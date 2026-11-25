@@ -62,20 +62,6 @@ def rolling_normal_variance(
     return -(mean_hat + sqrt_var * z_level)
 
 
-def kupiec_test(exceedances: jax.Array, T: int, level: float = 0.01):
-    rate_hat = exceedances / T
-
-    def bernoulli_log_likelihood(probability):
-        return xlogy(T - exceedances, 1 - probability) + xlogy(exceedances, probability)
-
-    lr_stat = -2 * (
-        bernoulli_log_likelihood(level) - bernoulli_log_likelihood(rate_hat)
-    )
-    p_value = chi2.sf(lr_stat, df=1)
-
-    return lr_stat, p_value
-
-
 def ewma_normal_variance(
     logret, window: int = 504, level: float = 0.01, decay: float = 0.94
 ) -> jax.Array:
@@ -90,3 +76,48 @@ def ewma_normal_variance(
     var_hat = jnp.concatenate([initial_variance[None, :], later_vars])
 
     return -jnp.sqrt(var_hat) * norm.ppf(level)
+
+
+def kupiec_test(exceedances: jax.Array, T: int, level: float = 0.01):
+    rate_hat = exceedances / T
+
+    def bernoulli_log_likelihood(probability):
+        return xlogy(T - exceedances, 1 - probability) + xlogy(exceedances, probability)
+
+    lr_statistic = -2 * (
+        bernoulli_log_likelihood(level) - bernoulli_log_likelihood(rate_hat)
+    )
+    p_value = chi2.sf(lr_statistic, df=1)
+
+    return lr_statistic, p_value
+
+
+def christoffersen_test(exceedances: jax.Array):
+    previous_day = exceedances[:-1]
+    current_day = exceedances[1:]
+
+    # n_{ij} where 1 means an exceedance, first index is t-1, second is t
+    n00 = jnp.sum(~previous_day & ~current_day, axis=0)
+    n01 = jnp.sum(~previous_day & current_day, axis=0)
+    n10 = jnp.sum(previous_day & ~current_day, axis=0)
+    n11 = jnp.sum(previous_day & current_day, axis=0)
+
+    prob_01 = n01 / (n00 + n01)
+    prob_11 = n11 / jnp.maximum(n10 + n11, 1)  # avoid dividing by 0
+    null_probability = (n01 + n11) / (
+        n00 + n01 + n10 + n11
+    )  # null is independence of successive events
+
+    markov_log_likelihood = (
+        xlogy(n00, 1 - prob_01)
+        + xlogy(n01, prob_01)
+        + xlogy(n10, 1 - prob_11)
+        + xlogy(n11, prob_11)
+    )
+    indep_log_likelihood = xlogy(n00 + n10, 1 - null_probability) + xlogy(
+        n01 + n11, null_probability
+    )
+
+    lr_statistic = -2 * (indep_log_likelihood - markov_log_likelihood)
+    p_value = chi2.sf(lr_statistic, df=1)
+    return lr_statistic, p_value

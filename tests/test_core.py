@@ -1,8 +1,8 @@
 import jax
 import jax.numpy as jnp
 
-from tail_risk.core import hill_curve_1d, rolling_normal_variance
-from tail_risk.core import kupiec_test, ewma_normal_variance
+from tail_risk.core import hill_curve_1d, rolling_normal_variance, ewma_normal_variance
+from tail_risk.core import kupiec_test, christoffersen_test
 
 jax.config.update("jax_enable_x64", True)
 
@@ -88,3 +88,15 @@ def test_ewma_variance_has_no_look_ahead():
     assert jnp.allclose(var_clean[0], var_crash[0])
     # The day after the crash, predictions should be affected
     assert not jnp.allclose(var_clean[1], var_crash[1])
+
+
+def test_christiffersen_fixed_value_and_edge_case():
+    sequence = jnp.array([0, 1, 1, 0, 0, 1], dtype=bool)
+    no_breach = jnp.zeros(6, dtype=bool)
+    exceedances = jnp.stack([sequence, no_breach], axis=1)
+
+    lr_stat, _ = christoffersen_test(exceedances)
+    # Precalculated value comparison test
+    assert jnp.isclose(lr_stat[0], 0.1386, atol=1e-3)
+    # Make sure no exceedances at all do not result in NaN
+    assert jnp.isfinite(lr_stat[1])

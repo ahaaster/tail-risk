@@ -13,6 +13,7 @@ from typing import Callable
 from tail_risk.config import K_RATIO, K_OVER_T_SHARES, MARKET_LABELS
 from tail_risk.config import VAR_MODELS, VAR_WINDOW, VAR_LEVEL, MODEL_LABELS
 from tail_risk.core import calc_hill_curve, create_iqr_band, calc_quartiles, kupiec_test
+from tail_risk.core import christoffersen_test
 from tail_risk.simulation import simulate_data
 from tail_risk.plots import plot_hill_curves, plot_ecdf, plot_exceedance_over_time
 
@@ -72,19 +73,22 @@ def run_var_backtest(
 
     forecast_count = exceedances.shape[0]
     exceed_count = exceedances.sum(axis=0)
-    _, p_val = kupiec_test(exceed_count, forecast_count, level)
+
+    _, p_val_kupiec = kupiec_test(exceed_count, forecast_count, level)
+    _, p_val_chris = christoffersen_test(exceed_count)
+    rejections_kupiec = (p_val_kupiec < 0.05).mean()
+    rejections_chris = (p_val_chris < 0.05).mean()
 
     exceed_rate = np.asarray(exceed_count / forecast_count)
     quarter, median, three_quart = calc_quartiles(exceed_rate)
-
-    rejections = (p_val < 0.05).mean()
 
     results = {
         "market": MARKET_LABELS[market_name],
         "model": MODEL_LABELS[model_name],
         "median rate exceeded": f"{median:.2%}",
         "IQR-band": f"{quarter:.2%}-{three_quart:.2%}",
-        "share rejected (5%)": f"{rejections:.1%}",
+        "share rejected coverage (5%)": f"{rejections_kupiec:.1%}",
+        "share rejected indep. (5%)": f"{rejections_chris:.1%}",
     }
 
     dates = log_returns.index[window:]
