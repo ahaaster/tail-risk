@@ -169,7 +169,7 @@ if __name__ == "__main__":
             share_below_2_alpha = (alpha_hats < 2).mean()
             summary_rows.append(
                 {
-                    "market": market_name,
+                    "market": MARKET_LABELS[market_name],
                     "k/T": f"{pct:.1%}",
                     "k": k,
                     r"median $\hat{\alpha}$": round(float(np.median(alpha_hats)), 2),

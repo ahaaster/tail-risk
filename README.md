@@ -3,8 +3,8 @@
 **How heavy are the tails of individual stock returns, and how much does a normal model understate a 1% daily loss risk?**
 
 <p>
-  <img src="figures/ecdf.png" width="80%" />
-  <img src="figures/var_summary.png" width="80%" />
+  <img src="figures/ecdf.png" width="90%" />
+  <img src="figures/var_summary.png" width="90%" />
 </p>
 
 
@@ -55,8 +55,8 @@ Daily $1\%$ Value-at-Risk forecast each day using only data up to the previous d
 
 | | rolling σ (504 days) | EWMA σ (λ = 0.94) |
 |---|---|---|
-| **normal quantile** | (a) | (b) |
-| **Student-t quantile** | (c) | (d) |
+| **normal quantile** | "normal, rolling $\sigma$" | "normal, ewma $\sigma$" |
+| **Student-t quantile** | "Student's t, rolling $\sigma$ | "Student's t, ewma $\sigma$" |
 
 #### $\sigma$ method 
 equal-weighted mean of squared returns over 2 years or EWMA with a warm-up on the first 2 years.
@@ -74,9 +74,8 @@ Quantiles are precomputed for the grid using `scipy.stats.t.ppf`, because JAX do
 Tests are done per stock individually instead of pooled.
 That is because breaches move together across stocks:
 - Kupiec unconditional coverage:
-$$ LR = -2 \bigg[ \ell(p_0) - \ell(x/T) \bigg] 
-$$ $$
-ℓ(\pi) = (T - x) ln(1 - \pi) + x ln(\pi), \chi^2 (1) $$
+$$ LR = -2 \bigg[ \ell(p_0) - \ell(x/T) \bigg] $$ 
+$$ \ell(\pi) = (T - x) ln(1 - \pi) + x ln(\pi), \chi^2 (1) $$
 - Christoffersen independence: Markov-chain LR on the four breach transition counts, $\chi^2 (1)$
 
 Reported as the share of stocks rejected at the $5\%$ level.
@@ -90,12 +89,12 @@ By chance rejection is expected to be about $5\%$ if the model is correct.
 <!-- hill_summary_table:start -->
 | market   | k/T   |   k |   median $\hat{\alpha}$ | share $\hat{\alpha} < 2$   |
 |:---------|:------|----:|------------------------:|:---------------------------|
-| euronext | 2.0%  | 106 |                    2.97 | 0.0%                       |
-| euronext | 3.5%  | 186 |                    2.84 | 0.0%                       |
-| euronext | 5.0%  | 266 |                    2.64 | 0.0%                       |
-| sp500    | 2.0%  | 104 |                    2.73 | 2.6%                       |
-| sp500    | 3.5%  | 183 |                    2.56 | 3.1%                       |
-| sp500    | 5.0%  | 262 |                    2.43 | 4.1%                       |
+| Euronext | 2.0%  | 106 |                    2.97 | 0.0%                       |
+| Euronext | 3.5%  | 186 |                    2.84 | 0.0%                       |
+| Euronext | 5.0%  | 266 |                    2.64 | 0.0%                       |
+| S&P 500  | 2.0%  | 104 |                    2.73 | 2.6%                       |
+| S&P 500  | 3.5%  | 183 |                    2.56 | 3.1%                       |
+| S&P 500  | 5.0%  | 262 |                    2.43 | 4.1%                       |
 <!-- hill_summary_table:end -->
 
 Estimates sit below the $3-4$ often reported,

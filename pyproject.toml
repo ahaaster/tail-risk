@@ -1,6 +1,6 @@
 [project]
 name = "tail-risk"
-version = "0.4.0"
+version = "0.4.1"
 description = "How heavy are the tails of individual stock returns, and how much does a normal model understate 1% daily loss risk?"
 readme = "README.md"
 authors = [
