@@ -3,9 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from matplotlib.lines import Line2D
-from matplotlib.ticker import PercentFormatter
+from matplotlib.ticker import PercentFormatter, MultipleLocator
 
 from .config import MARKET_LABELS, MODEL_LABELS, VAR_WINDOW
+from .core import calc_quartiles
 
 MARKET_COLOURS = {
     "sp500": "#1f6fb4",
@@ -25,9 +26,12 @@ CRISES = {
     "2022": ("2022-01-03", "2022-10-12"),
 }
 VAR_MODEL_STYLES = {
-    "normal_rolling": {"color": "0.5", "linewidth": 1.0},
-    "normal_ewma": {"color": "#6a3d9a", "linewidth": 1.6},
+    "normal_rolling": {"color": "#b5b5b5", "linewidth": 1.0},
+    "t_rolling": {"color": "#555555", "linewidth": 1.6},
+    "normal_ewma": {"color": "#b9a3d0", "linewidth": 1.0},
+    "t_ewma": {"color": "#6a3d9a", "linewidth": 1.6},
 }
+MODEL_ORDER = ("normal_rolling", "normal_ewma", "t_rolling", "t_ewma")
 
 
 def shade_k_band(ax, k_start: float = 0.02, k_end: float = 0.05, alpha: float = 0.15):
@@ -182,4 +186,50 @@ def plot_exceedance_over_time(
 
     axes[0].legend(frameon=False, fontsize=8)
     fig.tight_layout()
+    return fig
+
+
+def plot_exceedance_summary(
+    var_rates: dict[str, dict[str, np.ndarray]], level: float = 0.01
+):
+    fig, axes = plt.subplots(
+        1, len(var_rates), figsize=(9, 2.5), sharex=True, sharey=True
+    )
+
+    for ax, (market, model_rates) in zip(axes, var_rates.items()):
+        ax.axvline(level, color="0.3", linestyle="dashed", linewidth=1.0, zorder=1.5)
+
+        for row, model in enumerate(MODEL_ORDER):
+            quarter, median, three_quart = calc_quartiles(model_rates[model])
+            colour = VAR_MODEL_STYLES[model]["color"]
+
+            ax.hlines(row, quarter, three_quart, color=colour, linewidth=2)
+            ax.plot(median, row, "o", color=colour, markersize=8)
+
+        ax.set_title(MARKET_LABELS[market], loc="left", fontsize=10)
+        ax.set_xlim(0.008, 0.023)
+        ax.xaxis.set_major_formatter(PercentFormatter(1.0, decimals=1))
+        ax.xaxis.set_major_locator(MultipleLocator(0.005))
+        ax.grid(axis="x", color="0.92")
+        ax.spines[["top", "right", "left"]].set_visible(False)
+        ax.tick_params(axis="y", length=0)
+
+    y_labels = [MODEL_LABELS[model] for model in MODEL_ORDER]
+    axes[0].set_yticks(range(len(MODEL_ORDER)), y_labels)
+    axes[0].invert_yaxis()
+    axes[0].text(
+        level,
+        0,
+        f"  nominal {level:.1%}",
+        va="center",
+        ha="left",
+        fontsize=8,
+        color="0.3",
+    )
+
+    fig.supxlabel(
+        "share of days with a loss > 1% VaR (IQR with median dot)", fontsize=10
+    )
+    fig.tight_layout()
+    fig.subplots_adjust(wspace=0.10)
     return fig
