@@ -180,9 +180,10 @@ uv run scripts/run_analysis.py
 ```
 
 ## Future work
-- A GPD (peaks-over-threshold) tail for the VaR quantile, which fits only the tail.
-- The 0.1% VaR level, where tail shape matters more.
-- Intraday, lower-frequency (weekly/monthly), FX and crypto returns.
+- Include darkmode versions of the figures to not have an eyesore
+- A GPD (peaks-over-threshold) tail for the VaR quantile, which fits only the tail
+- The 0.1% VaR level, where tail shape matters more
+- Intraday, lower-frequency (weekly/monthly), FX and crypto returns
 
 <!-- ## References
 Hill (1975); McCulloch (1997); Kupiec (1995); Christoffersen (1998); J.P. Morgan/Reuters, RiskMetrics Technical Document (1996). -->
