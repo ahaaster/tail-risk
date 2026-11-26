@@ -37,10 +37,12 @@
 
 ### Tail index (Hill)
 The Hill estimator is the maximum-likelihood estimator of a Pareto tail fitted to the $k$ largest losses ordered from largest to smallest:
-
-$$ \hat{\alpha}(k) = \bigg[ \tfrac1k \sum_{i=1}^k \big(\ln(L_{(i)}) - \ln(L_{(k+1)}) \big) \bigg]^{-1} \\
-SE \approx \frac{\hat{\alpha}}{\sqrt k}  \quad (iid.) $$
-
+```math
+\begin{aligned}
+\hat{\alpha}(k) &= \bigg[ \tfrac1k \sum_{i=1}^k \big(\ln(L_{(i)}) - \ln(L_{(k+1)}) \big) \bigg]^{-1} \\
+SE &\approx \frac{\hat{\alpha}}{\sqrt k}  \quad (iid.)
+\end{aligned}
+```
 The whole curve is computed with a cumulative sum and vectorised mapping across all stocks in JAX.
 $\hat{\alpha}$ falls steadily with $k$ and has **no plateau** of stable values, 
 so results are reported at $k/T = \{0.02, 0.035, 0.05\}$ instead of a single value $k$.
@@ -65,17 +67,22 @@ All four models are tested on the same forecast days
 
 #### Student-t
 $\nu$ is fitted by grid maximum likelihood on standardised returns ($z$) on an expanding window refitted yearly.
-
-$$ \nu \in [2.5, 30]\text{, step } 0.1; \quad z = r / \hat{\sigma} $$
-
+```math
+\nu \in [2.5, 30]\text{, step } 0.1; \quad z = r / \hat{\sigma}
+```
 Quantiles are precomputed for the grid using `scipy.stats.t.ppf`, because JAX does not have the relevant method available for the $t$-distribution.
 
 #### Tests
 Tests are done per stock individually instead of pooled.
 That is because breaches move together across stocks:
 - Kupiec unconditional coverage:
-$$ LR = -2 \bigg[ \ell(p_0) - \ell(x/T) \bigg] \\ 
-\ell(\pi) = (T - x) ln(1 - \pi) + x ln(\pi),\quad \chi^2 (1) $$
+```math 
+\begin{aligned}
+LR &= -2 \bigg[ \ell(p_0) - \ell(x/T) \bigg] \\
+\ell(\pi) &= (T - x) ln(1 - \pi) + x ln(\pi)
+,\quad \chi^2 (1)
+\end{aligned}
+```
 - Christoffersen independence: Markov-chain LR on the four breach transition counts, $\chi^2 (1)$
 
 Reported as the share of stocks rejected at the $5\%$ level.
@@ -142,7 +149,7 @@ Nearly all stocks evaluated have $\hat{\alpha} > 2$, yet stable returns can't be
 Hill is found to be biased upward for stable data, increasingly so as $\alpha \to 2$ as described in McCulloch (1997).
 
 Simulated data brackets the stock estimates, where a stable law with
-- $\alpha = 1.7$ gives $\hat{\alpha} \approx 2.1-3.5$
+- $\alpha = 1.7$ gives $\hat{\alpha} \approx 2.1-2.35$
 - $\alpha = 1.9$ gives $\hat{\alpha} \approx 3.6$
 
 | true $\alpha$ | $\hat{\alpha} \big(k/T = 2\% \big)$ | $3.5\%$ | $5\%$ |
