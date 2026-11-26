@@ -37,9 +37,8 @@
 
 ### Tail index (Hill)
 The Hill estimator is the maximum-likelihood estimator of a Pareto tail fitted to the $k$ largest losses ordered from largest to smallest:
-$$ \hat{\alpha}(k) = \bigg[ \tfrac1k \sum_{i=1}^k \big(\ln(L_{(i)}) - \ln(L_{(k+1)}) \big) \bigg]^{-1}, SE \approx \frac{\hat{\alpha}}{\sqrt k}  (*iid.*) $$
 
-<!-- α̂(k) = [ (1/k) Σᵢ₌₁ᵏ ln( L₍ᵢ₎ / L₍ₖ₊₁₎ ) ]⁻¹,  SE ≈ α̂/√k (i.i.d.) -->
+$$ \hat{\alpha}(k) = \bigg[ \tfrac1k \sum_{i=1}^k \big(\ln(L_{(i)}) - \ln(L_{(k+1)}) \big) \bigg]^{-1} \\ SE \approx \frac{\hat{\alpha}}{\sqrt k}  \quad (iid.) $$
 
 The whole curve is computed with a cumulative sum and vectorised mapping across all stocks in JAX.
 $\hat{\alpha}$ falls steadily with $k$ and has **no plateau** of stable values, 
@@ -66,7 +65,7 @@ All four models are tested on the same forecast days
 #### Student-t
 $\nu$ is fitted by grid maximum likelihood on standardised returns ($z$) on an expanding window refitted yearly.
 
-$$ \nu \in [2.5, 30], step 0.1; z = r / \hat{\sigma} $$
+$$ \nu \in [2.5, 30]\text{, step } 0.1; \quad z = r / \hat{\sigma} $$
 
 Quantiles are precomputed for the grid using `scipy.stats.t.ppf`, because JAX does not have the relevant method available for the $t$-distribution.
 
@@ -74,8 +73,7 @@ Quantiles are precomputed for the grid using `scipy.stats.t.ppf`, because JAX do
 Tests are done per stock individually instead of pooled.
 That is because breaches move together across stocks:
 - Kupiec unconditional coverage:
-$$ LR = -2 \bigg[ \ell(p_0) - \ell(x/T) \bigg] $$ 
-$$ \ell(\pi) = (T - x) ln(1 - \pi) + x ln(\pi), \chi^2 (1) $$
+$$ LR = -2 \bigg[ \ell(p_0) - \ell(x/T) \bigg] \\ \ell(\pi) = (T - x) ln(1 - \pi) + x ln(\pi),\quad \chi^2 (1) $$
 - Christoffersen independence: Markov-chain LR on the four breach transition counts, $\chi^2 (1)$
 
 Reported as the share of stocks rejected at the $5\%$ level.
