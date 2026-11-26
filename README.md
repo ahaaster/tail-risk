@@ -38,7 +38,8 @@
 ### Tail index (Hill)
 The Hill estimator is the maximum-likelihood estimator of a Pareto tail fitted to the $k$ largest losses ordered from largest to smallest:
 
-$$ \hat{\alpha}(k) = \bigg[ \tfrac1k \sum_{i=1}^k \big(\ln(L_{(i)}) - \ln(L_{(k+1)}) \big) \bigg]^{-1} \\ SE \approx \frac{\hat{\alpha}}{\sqrt k}  \quad (iid.) $$
+$$ \hat{\alpha}(k) = \bigg[ \tfrac1k \sum_{i=1}^k \big(\ln(L_{(i)}) - \ln(L_{(k+1)}) \big) \bigg]^{-1} \\
+SE \approx \frac{\hat{\alpha}}{\sqrt k}  \quad (iid.) $$
 
 The whole curve is computed with a cumulative sum and vectorised mapping across all stocks in JAX.
 $\hat{\alpha}$ falls steadily with $k$ and has **no plateau** of stable values, 
@@ -73,7 +74,8 @@ Quantiles are precomputed for the grid using `scipy.stats.t.ppf`, because JAX do
 Tests are done per stock individually instead of pooled.
 That is because breaches move together across stocks:
 - Kupiec unconditional coverage:
-$$ LR = -2 \bigg[ \ell(p_0) - \ell(x/T) \bigg] \\ \ell(\pi) = (T - x) ln(1 - \pi) + x ln(\pi),\quad \chi^2 (1) $$
+$$ LR = -2 \bigg[ \ell(p_0) - \ell(x/T) \bigg] \\ 
+\ell(\pi) = (T - x) ln(1 - \pi) + x ln(\pi),\quad \chi^2 (1) $$
 - Christoffersen independence: Markov-chain LR on the four breach transition counts, $\chi^2 (1)$
 
 Reported as the share of stocks rejected at the $5\%$ level.
